@@ -4,8 +4,10 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
 import java.util.List;
+import java.util.Locale;
 import java.util.UUID;
 
+import org.junit.Before;
 import org.junit.Ignore;
 import org.junit.Test;
 
@@ -20,6 +22,11 @@ import tourGuide.user.User;
 import tripPricer.Provider;
 
 public class TestTourGuideService {
+
+	@Before
+	public void setup(){
+		Locale.setDefault(new Locale("en", "US"));
+	}
 
 	@Test
 	public void getUserLocation() {
@@ -92,8 +99,8 @@ public class TestTourGuideService {
 		assertEquals(user.getUserId(), visitedLocation.userId);
 	}
 	
-	@Ignore // Not yet implemented
-	@Test
+	//@Ignore // Not yet implemented
+	//@Test
 	public void getNearbyAttractions() {
 		GpsUtil gpsUtil = new GpsUtil();
 		RewardsService rewardsService = new RewardsService(gpsUtil, new RewardCentral());
