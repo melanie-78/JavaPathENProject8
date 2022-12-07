@@ -24,6 +24,9 @@ import tourGuide.helper.InternalTestHelper;
 import tourGuide.tracker.Tracker;
 import tourGuide.user.User;
 import tourGuide.user.UserReward;
+import tourGuide.web.AttractionInfo;
+import tourGuide.web.AttractionNearUser;
+import tourGuide.web.FavouriteAttractionRequest;
 import tripPricer.Provider;
 import tripPricer.TripPricer;
 
@@ -53,7 +56,7 @@ public class TourGuideService {
 	public List<UserReward> getUserRewards(User user) {
 		return user.getUserRewards();
 	}
-	
+
 	public VisitedLocation getUserLocation(User user) {
 		VisitedLocation visitedLocation = (user.getVisitedLocations().size() > 0) ?
 			user.getLastVisitedLocation() :
@@ -82,12 +85,73 @@ public class TourGuideService {
 		user.setTripDeals(providers);
 		return providers;
 	}
-	
+
+
 	public VisitedLocation trackUserLocation(User user) {
 		VisitedLocation visitedLocation = gpsUtil.getUserLocation(user.getUserId());
 		user.addToVisitedLocations(visitedLocation);
 		rewardsService.calculateRewards(user);
 		return visitedLocation;
+	}
+
+	/**
+	 * @return this method returns a list of tourists attractions
+	 */
+	public List<Attraction> getTouristsAttractions(){
+		List<Attraction> attractions = gpsUtil.getAttractions();
+		return attractions;
+	}
+
+	/**
+	 * @param userName is the name of an application's user
+	 * @return an object type which contains the name of Tourist attraction, the tourist attractions lat/long, the user's location lat/long,
+	 the distance in miles between the user's location and each of the attractions ant the reward points for visiting each Attraction.
+	 */
+
+	public FavouriteAttractionRequest getNearAttractions(String userName){
+		FavouriteAttractionRequest favouriteAttractionRequest = new FavouriteAttractionRequest();
+
+		User user = getUser(userName);
+		VisitedLocation visitedLocation= getUserLocation(user);
+
+		// return the user's location
+		Location userLocation = visitedLocation.location;
+
+		// return distance in miles between the user's location and each of the attractions.
+		// calculate the distance
+		List<AttractionNearUser> listOfAttractionNearUser = getTouristsAttractions().stream().map(attraction -> {
+					AttractionNearUser attractionNearUser = new AttractionNearUser();
+
+					attractionNearUser.setAttraction(attraction);
+					double distance = rewardsService.getDistance(attraction, userLocation);
+					attractionNearUser.setDistanceNearUser(distance);
+
+					return  attractionNearUser;
+				}).sorted((o1, o2)-> (int) (o1.getDistanceNearUser() - o2.getDistanceNearUser()))
+				.limit(5)
+				.collect(Collectors.toList());
+
+		// return The reward points for visiting each Attraction
+		listOfAttractionNearUser.forEach(attractionNearUser -> {
+			int rewardPoints = rewardsService.getRewardPoints(attractionNearUser.getAttraction(), user);
+			attractionNearUser.setRewardPoint(rewardPoints);
+		});
+
+		List<AttractionInfo> attractionInfoList = listOfAttractionNearUser.stream().map(attractionNearUser -> {
+			AttractionInfo attractionInfo = new AttractionInfo();
+
+			attractionInfo.setAttractionName(attractionNearUser.getAttraction().attractionName);
+			attractionInfo.setAttractionLocation(new Location(attractionNearUser.getAttraction().latitude, attractionNearUser.getAttraction().longitude));
+			attractionInfo.setDistance(attractionNearUser.getDistanceNearUser());
+			attractionInfo.setRewardPoint(attractionNearUser.getRewardPoint());
+
+			return attractionInfo;
+		}).collect(Collectors.toList());
+
+		favouriteAttractionRequest.setUserLocation(userLocation);
+		favouriteAttractionRequest.setAttractionInfos(attractionInfoList);
+
+		return favouriteAttractionRequest;
 	}
 
 	public List<Attraction> getNearByAttractions(VisitedLocation visitedLocation) {
