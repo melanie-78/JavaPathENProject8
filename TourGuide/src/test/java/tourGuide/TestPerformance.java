@@ -61,6 +61,7 @@ public class TestPerformance {
 		for(User user : allUsers) {
 			tourGuideService.trackUserLocation(user);
 		}
+
 		stopWatch.stop();
 		tourGuideService.tracker.stopTracking();
 
