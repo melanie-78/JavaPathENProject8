@@ -1,0 +1,6 @@
+image: gradle:jdk11
+
+build:
+  stage: build
+  script:
+    - ./gradlew build
