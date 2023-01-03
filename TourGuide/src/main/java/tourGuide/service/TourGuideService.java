@@ -29,6 +29,7 @@ import tourGuide.user.UserReward;
 import tourGuide.web.AttractionInfo;
 import tourGuide.web.AttractionNearUser;
 import tourGuide.web.FavouriteAttractionRequest;
+import tourGuide.web.VisitedLocationRequest;
 import tripPricer.Provider;
 import tripPricer.TripPricer;
 
@@ -188,6 +189,33 @@ public class TourGuideService {
 		return favouriteAttractionRequest;
 	}
 
+	/**
+	 *
+	 * @return object should be the just a JSON mapping of userId to Locations similar to:
+	 *             {
+	 *     	       "019b04a9-067a-4c76-8817-ee75088c3822": {"longitude":-48.188821,"latitude":74.84371}
+	 *     	      ...}
+	 */
+	public List<VisitedLocationRequest> getAllCurrentLocations(){
+		//- Note: does not use gpsUtil to query for their current location,
+		//        but rather gathers the user's current location from their stored location history.
+
+		List<VisitedLocation> lastVisitedLocationList = getAllUsers().stream().map(user -> {
+			VisitedLocation lastVisitedLocation = user.getLastVisitedLocation();
+			return lastVisitedLocation;
+		}).collect(Collectors.toList());
+
+		List<VisitedLocationRequest> visitedLocationRequestList = lastVisitedLocationList.stream().map(visitedLocation -> {
+			VisitedLocationRequest visitedLocationRequest = new VisitedLocationRequest();
+			visitedLocationRequest.setUserId(visitedLocation.userId.toString());
+			visitedLocationRequest.setLongitude(visitedLocation.location.longitude);
+			visitedLocationRequest.setLatitude(visitedLocation.location.latitude);
+
+			return visitedLocationRequest;
+		}).collect(Collectors.toList());
+
+		return visitedLocationRequestList;
+	}
 
 	public List<Attraction> getNearByAttractions(VisitedLocation visitedLocation) {
 		List<Attraction> nearbyAttractions = new ArrayList<>();

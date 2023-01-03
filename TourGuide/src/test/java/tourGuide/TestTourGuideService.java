@@ -22,6 +22,7 @@ import tourGuide.service.RewardsService;
 import tourGuide.service.TourGuideService;
 import tourGuide.user.User;
 import tourGuide.web.FavouriteAttractionRequest;
+import tourGuide.web.VisitedLocationRequest;
 import tripPricer.Provider;
 
 public class TestTourGuideService {
@@ -141,5 +142,33 @@ public class TestTourGuideService {
 		
 		assertEquals(5, providers.size());
 	}
-	
+
+	@Test
+	public void getAllCurrentLocations(){
+		GpsUtil gpsUtil = new GpsUtil();
+		RewardsService rewardsService = new RewardsService(gpsUtil, new RewardCentral());
+		InternalTestHelper.setInternalUserNumber(0);
+		TourGuideService tourGuideService = new TourGuideService(gpsUtil, rewardsService);
+
+		User user = new User(UUID.randomUUID(), "jon", "000", "jon@tourGuide.com");
+		User user2 = new User(UUID.randomUUID(), "jon2", "000", "jon2@tourGuide.com");
+
+		tourGuideService.addUser(user);
+		tourGuideService.addUser(user2);
+
+		List<User> allUsers = tourGuideService.getAllUsers();
+
+		Attraction attraction = gpsUtil.getAttractions().get(0);
+
+		allUsers.forEach(u -> {
+			VisitedLocation visitedLocation = new VisitedLocation(u.getUserId(), attraction, new Date());
+			u.addToVisitedLocations(visitedLocation);
+		});
+
+		tourGuideService.tracker.stopTracking();
+
+		List<VisitedLocationRequest> allCurrentLocations = tourGuideService.getAllCurrentLocations();
+
+		assertTrue(allCurrentLocations.size()==2);
+	}
 }

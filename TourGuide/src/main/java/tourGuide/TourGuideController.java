@@ -17,6 +17,7 @@ import tourGuide.user.User;
 import tourGuide.user.UserPreferences;
 import tourGuide.web.FavouriteAttractionRequest;
 import tourGuide.web.UserPreferencesRequest;
+import tourGuide.web.VisitedLocationRequest;
 import tripPricer.Provider;
 
 @RestController
@@ -75,20 +76,11 @@ public class TourGuideController {
     public String getRewards(@RequestParam String userName) {
     	return JsonStream.serialize(tourGuideService.getUserRewards(getUser(userName)));
     }
-    
+
     @RequestMapping("/getAllCurrentLocations")
     public String getAllCurrentLocations() {
-    	// TODO: Get a list of every user's most recent location as JSON
-    	//- Note: does not use gpsUtil to query for their current location,
-    	//        but rather gathers the user's current location from their stored location history.
-    	//
-    	// Return object should be the just a JSON mapping of userId to Locations similar to:
-    	//     {
-    	//        "019b04a9-067a-4c76-8817-ee75088c3822": {"longitude":-48.188821,"latitude":74.84371}
-    	//        ...
-    	//     }
-
-    	return JsonStream.serialize("");
+        List<VisitedLocationRequest> allCurrentLocations = tourGuideService.getAllCurrentLocations();
+        return JsonStream.serialize(allCurrentLocations);
     }
     
     @RequestMapping("/getTripDeals")
