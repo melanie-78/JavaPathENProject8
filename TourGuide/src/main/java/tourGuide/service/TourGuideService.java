@@ -9,9 +9,11 @@ import java.util.List;
 import java.util.Map;
 import java.util.Random;
 import java.util.UUID;
+import java.util.concurrent.*;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
+import com.google.common.base.Supplier;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
@@ -32,6 +34,7 @@ import tripPricer.TripPricer;
 
 @Service
 public class TourGuideService {
+	private ExecutorService executorService =  Executors.newFixedThreadPool(100);
 	private Logger logger = LoggerFactory.getLogger(TourGuideService.class);
 	private final GpsUtil gpsUtil;
 	private final RewardsService rewardsService;
@@ -57,11 +60,11 @@ public class TourGuideService {
 		return user.getUserRewards();
 	}
 
-	public VisitedLocation getUserLocation(User user) {
-		VisitedLocation visitedLocation = (user.getVisitedLocations().size() > 0) ?
-			user.getLastVisitedLocation() :
-			trackUserLocation(user);
-		return visitedLocation;
+
+	public CompletableFuture<VisitedLocation> getUserLocation(User user) {
+		return (user.getVisitedLocations().size() > 0) ?
+				CompletableFuture.completedFuture(user.getLastVisitedLocation()) :
+				trackUserLocation(user);
 	}
 	
 	public User getUser(String userName) {
@@ -86,12 +89,43 @@ public class TourGuideService {
 		return providers;
 	}
 
+	/**
+	 * @param user is a user of the application
+	 * @return a future object of visitedLocation
+	 */
+	public CompletableFuture<VisitedLocation> trackUserLocation (User user){
+		Supplier<VisitedLocation> visitedLocationSupplier = () -> {
+			VisitedLocation visitedLocation = gpsUtil.getUserLocation(user.getUserId());
+			user.addToVisitedLocations(visitedLocation);
+			rewardsService.calculateRewards(user);
+			return visitedLocation;
+		};
 
-	public VisitedLocation trackUserLocation(User user) {
-		VisitedLocation visitedLocation = gpsUtil.getUserLocation(user.getUserId());
-		user.addToVisitedLocations(visitedLocation);
-		rewardsService.calculateRewards(user);
-		return visitedLocation;
+		CompletableFuture<VisitedLocation> visitedLocationCompletableFuture = CompletableFuture
+				.supplyAsync(visitedLocationSupplier, executorService);
+		return visitedLocationCompletableFuture;
+	}
+
+	public void terminateExecutorService() {
+		// Disable new tasks from being submitted
+		executorService.shutdown();
+		try {
+			// Wait a while for existing tasks to terminate
+			if (!executorService.awaitTermination(1320, TimeUnit.SECONDS)) {
+				// Cancel currently executing tasks forcefully
+				executorService.shutdownNow();
+				// Wait a while for tasks to respond to being cancelled
+				if (!executorService.awaitTermination(1320, TimeUnit.SECONDS))
+					System.err.println("Executor service did not terminate");
+			} else {
+				System.out.println("************** All executor tasks has been terminated");
+			}
+		} catch (InterruptedException ex) {
+			// (Re-)Cancel if current thread also interrupted
+			executorService.shutdownNow();
+			// Preserve interrupt status
+			Thread.currentThread().interrupt();
+		}
 	}
 
 	/**
@@ -108,14 +142,14 @@ public class TourGuideService {
 	 the distance in miles between the user's location and each of the attractions ant the reward points for visiting each Attraction.
 	 */
 
-	public FavouriteAttractionRequest getNearAttractions(String userName){
+	public FavouriteAttractionRequest getNearAttractions(String userName) throws ExecutionException, InterruptedException {
 		FavouriteAttractionRequest favouriteAttractionRequest = new FavouriteAttractionRequest();
 
 		User user = getUser(userName);
-		VisitedLocation visitedLocation= getUserLocation(user);
+		CompletableFuture<VisitedLocation> visitedLocationCompletableFuture = getUserLocation(user);
 
 		// return the user's location
-		Location userLocation = visitedLocation.location;
+		Location userLocation = visitedLocationCompletableFuture.get().location;
 
 		// return distance in miles between the user's location and each of the attractions.
 		// calculate the distance
@@ -153,6 +187,7 @@ public class TourGuideService {
 
 		return favouriteAttractionRequest;
 	}
+
 
 	public List<Attraction> getNearByAttractions(VisitedLocation visitedLocation) {
 		List<Attraction> nearbyAttractions = new ArrayList<>();
