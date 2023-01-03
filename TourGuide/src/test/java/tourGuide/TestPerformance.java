@@ -43,10 +43,8 @@ public class TestPerformance {
      *     highVolumeGetRewards: 100,000 users within 20 minutes:
 	 *          assertTrue(TimeUnit.MINUTES.toSeconds(20) >= TimeUnit.MILLISECONDS.toSeconds(stopWatch.getTime()));
 	 */
-	
-	@Ignore
 	@Test
-	public void highVolumeTrackLocation() {
+	public void highVolumeTrackLocation() throws InterruptedException {
 		GpsUtil gpsUtil = new GpsUtil();
 		RewardsService rewardsService = new RewardsService(gpsUtil, new RewardCentral());
 		// Users should be incremented up to 100,000, and test finishes within 15 minutes
@@ -62,6 +60,7 @@ public class TestPerformance {
 			tourGuideService.trackUserLocation(user);
 		}
 
+		tourGuideService.terminateExecutorService();
 		stopWatch.stop();
 		tourGuideService.tracker.stopTracking();
 
@@ -69,9 +68,9 @@ public class TestPerformance {
 		assertTrue(TimeUnit.MINUTES.toSeconds(15) >= TimeUnit.MILLISECONDS.toSeconds(stopWatch.getTime()));
 	}
 	
-	@Ignore
+
 	@Test
-	public void highVolumeGetRewards() {
+	public void highVolumeGetRewards() throws InterruptedException {
 		GpsUtil gpsUtil = new GpsUtil();
 		RewardsService rewardsService = new RewardsService(gpsUtil, new RewardCentral());
 
@@ -84,10 +83,14 @@ public class TestPerformance {
 	    Attraction attraction = gpsUtil.getAttractions().get(0);
 		List<User> allUsers = new ArrayList<>();
 		allUsers = tourGuideService.getAllUsers();
-		allUsers.forEach(u -> u.addToVisitedLocations(new VisitedLocation(u.getUserId(), attraction, new Date())));
-	     
+		allUsers.forEach(u -> {
+					VisitedLocation visitedLocation = new VisitedLocation(u.getUserId(), attraction, new Date());
+					u.addToVisitedLocations(visitedLocation);
+		});
+
 	    allUsers.forEach(u -> rewardsService.calculateRewards(u));
-	    
+		rewardsService.terminateExecutorService();
+
 		for(User user : allUsers) {
 			assertTrue(user.getUserRewards().size() > 0);
 		}
