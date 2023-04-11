@@ -12,3 +12,4 @@ The objective is to correct and complete the code so as to improve the operation
 2. Gradle
 3. Junit
 4. Jacoco
+5. GitLab
